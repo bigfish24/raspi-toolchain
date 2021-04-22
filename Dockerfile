@@ -23,11 +23,7 @@ RUN update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-8 999 \
  && update-alternatives --install /usr/bin/cc  cc  /usr/bin/gcc-8 999 \
  && update-alternatives --install /usr/bin/c++ c++ /usr/bin/g++-8 999
 
-# Add a user called `develop`
-RUN useradd -ms /bin/bash develop
-RUN echo "develop   ALL=(ALL:ALL) ALL" >> /etc/sudoers
-
-WORKDIR /home/develop
+WORKDIR /root
 
 # Download and extract GCC
 RUN wget https://ftp.gnu.org/gnu/gcc/${GCC_VERSION}/${GCC_VERSION}.tar.gz && \
@@ -47,7 +43,7 @@ RUN cd ${GCC_VERSION} && contrib/download_prerequisites && rm *.tar.*
 
 # Build BinUtils
 RUN mkdir -p /opt/cross-pi-gcc
-WORKDIR /home/develop/build-binutils
+WORKDIR /root/build-binutils
 RUN ../${BINUTILS_VERSION}/configure \
         --prefix=/opt/cross-pi-gcc --target=arm-linux-gnueabihf \
         --with-arch=armv6 --with-fpu=vfp --with-float=hard \
@@ -56,7 +52,7 @@ RUN make -j$(nproc)
 RUN make install
 
 # Build the first part of GCC
-WORKDIR /home/develop/build-gcc
+WORKDIR /root/build-gcc
 RUN ../${GCC_VERSION}/configure \
         --prefix=/opt/cross-pi-gcc \
         --target=arm-linux-gnueabihf \
@@ -75,14 +71,14 @@ RUN apt-get update && \
     rm -rf /var/lib/apt/lists/*
 
 # Download and install the Linux headers
-WORKDIR /home/develop
+WORKDIR /root
 RUN git clone --depth=1 https://github.com/raspberrypi/linux
-WORKDIR /home/develop/linux
+WORKDIR /root/linux
 ENV KERNEL=kernel7
 RUN make ARCH=arm INSTALL_HDR_PATH=/opt/cross-pi-gcc/arm-linux-gnueabihf headers_install
 
 # Build GLIBC
-WORKDIR /home/develop/build-glibc
+WORKDIR /root/build-glibc
 RUN ../${GLIBC_VERSION}/configure \
         --prefix=/opt/cross-pi-gcc/arm-linux-gnueabihf \
         --build=$MACHTYPE --host=arm-linux-gnueabihf --target=arm-linux-gnueabihf \
@@ -97,23 +93,23 @@ RUN arm-linux-gnueabihf-gcc -nostdlib -nostartfiles -shared -x c /dev/null \
 RUN touch /opt/cross-pi-gcc/arm-linux-gnueabihf/include/gnu/stubs.h
 
 # Continue building GCC
-WORKDIR /home/develop/build-gcc
+WORKDIR /root/build-gcc
 RUN make -j$(nproc) all-target-libgcc
 RUN make install-target-libgcc
 
 # Finish building GLIBC
-WORKDIR /home/develop/build-glibc
+WORKDIR /root/build-glibc
 RUN make -j$(nproc)
 RUN make install
 
 # Finish building GCC
-WORKDIR /home/develop/build-gcc
+WORKDIR /root/build-gcc
 RUN make -j$(nproc)
 RUN make install
 
 #RUN cp -r /opt/cross-pi-gcc /opt/cross-pi-${GCC_VERSION}
 #
-#WORKDIR /home/develop/build-gcc9
+#WORKDIR /root/build-gcc9
 #RUN ../gcc-9.2.0/configure \
 #        --prefix=/opt/cross-pi-gcc \
 #        --target=arm-linux-gnueabihf \
@@ -122,5 +118,3 @@ RUN make install
 #        --disable-multilib
 #RUN make -j$(nproc) all-gcc
 #RUN make install-gcc
-
-USER develop
